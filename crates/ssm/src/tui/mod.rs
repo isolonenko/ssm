@@ -286,21 +286,35 @@ fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         Mode::Help => "Esc: close",
     };
 
-    // Append active filter indicator when in Normal mode with a non-empty filter
-    let hints = if matches!(app.mode, Mode::Normal) && !app.filter_text.is_empty() {
-        format!("{}  [filter: {}]", base_hints, app.filter_text)
+    // Show status message if present, otherwise show hints
+    if let Some(msg) = &app.status_message {
+        let color = if msg.starts_with("Error") {
+            Color::Red
+        } else {
+            Color::Yellow
+        };
+        let para = Paragraph::new(Line::from(Span::styled(
+            msg.clone(),
+            Style::default().fg(color),
+        )));
+        f.render_widget(para, area);
     } else {
-        base_hints.to_string()
-    };
+        let hints = if matches!(app.mode, Mode::Normal) && !app.filter_text.is_empty() {
+            format!("{}  [filter: {}]", base_hints, app.filter_text)
+        } else {
+            base_hints.to_string()
+        };
 
-    let para = Paragraph::new(Line::from(Span::styled(
-        hints,
-        Style::default().fg(Color::Gray),
-    )));
-    f.render_widget(para, area);
+        let para = Paragraph::new(Line::from(Span::styled(
+            hints,
+            Style::default().fg(Color::Gray),
+        )));
+        f.render_widget(para, area);
+    }
 }
 
 fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
+    app.status_message = None;
     match &app.mode.clone() {
         Mode::Normal => match key {
             KeyCode::Char('q') => app.should_quit = true,
@@ -339,6 +353,7 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 if let Some(host) = app.selected_host() {
                     let alias = host.alias.clone();
                     let tunnels = host.tunnels.clone();
+                    let mut errors = Vec::new();
                     for tunnel in &tunnels {
                         let running = app
                             .registry
@@ -346,10 +361,17 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                             .map(|e| is_pid_alive(e.pid))
                             .unwrap_or(false);
                         if running {
-                            let _ = stop_tunnel(&alias, &tunnel.name, &mut app.registry);
+                            if let Err(e) = stop_tunnel(&alias, &tunnel.name, &mut app.registry) {
+                                errors.push(format!("{}: {}", tunnel.name, e));
+                            }
                         } else {
-                            let _ = start_tunnel(&alias, tunnel, &mut app.registry);
+                            if let Err(e) = start_tunnel(&alias, tunnel, &mut app.registry) {
+                                errors.push(format!("{}: {}", tunnel.name, e));
+                            }
                         }
+                    }
+                    if !errors.is_empty() {
+                        app.status_message = Some(format!("Error: {}", errors.join(", ")));
                     }
                     app.save_registry();
                 }
@@ -457,9 +479,13 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                             .map(|e| is_pid_alive(e.pid))
                             .unwrap_or(false);
                         if running {
-                            let _ = stop_tunnel(&alias, &tunnel.name, &mut app.registry);
+                            if let Err(e) = stop_tunnel(&alias, &tunnel.name, &mut app.registry) {
+                                app.status_message = Some(format!("Error stopping tunnel: {}", e));
+                            }
                         } else {
-                            let _ = start_tunnel(&alias, &tunnel, &mut app.registry);
+                            if let Err(e) = start_tunnel(&alias, &tunnel, &mut app.registry) {
+                                app.status_message = Some(format!("Error starting tunnel: {}", e));
+                            }
                         }
                         app.save_registry();
                     }
@@ -944,17 +970,24 @@ fn toggle_scenario(app: &mut App, scenario: &ssm_core::config::Scenario) {
             .unwrap_or(false)
     });
 
+    let mut errors = Vec::new();
     for st in &scenario.tunnels {
         if any_running {
-            let _ = stop_tunnel(&st.host, &st.tunnel, &mut app.registry);
+            if let Err(e) = stop_tunnel(&st.host, &st.tunnel, &mut app.registry) {
+                errors.push(format!("{}:{}: {}", st.host, st.tunnel, e));
+            }
         } else {
-            // Find the tunnel config from the host
             if let Some(host) = app.config.hosts.iter().find(|h| h.alias == st.host) {
                 if let Some(tc) = host.tunnels.iter().find(|t| t.name == st.tunnel) {
-                    let _ = start_tunnel(&st.host, tc, &mut app.registry);
+                    if let Err(e) = start_tunnel(&st.host, tc, &mut app.registry) {
+                        errors.push(format!("{}:{}: {}", st.host, st.tunnel, e));
+                    }
                 }
             }
         }
+    }
+    if !errors.is_empty() {
+        app.status_message = Some(format!("Error: {}", errors.join(", ")));
     }
     app.save_registry();
 }
