@@ -70,7 +70,7 @@ pub fn sync_ssh_config(config: &Config) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Host, Settings, TunnelConfig};
+    use crate::config::{Host, Settings};
     use std::path::PathBuf;
     use tempfile::TempDir;
 
