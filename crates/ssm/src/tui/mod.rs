@@ -34,7 +34,19 @@ use std::{io, path::PathBuf};
 
 pub fn run() {
     let config_path = Config::default_path().expect("failed to determine config path");
-    let config = Config::load(&config_path).expect("failed to load config");
+    let mut config = Config::load(&config_path).expect("failed to load config");
+
+    // First run: import hosts from ~/.ssh/config
+    if config.hosts.is_empty() {
+        let ssh_config_path = &config.settings.ssh_config_path;
+        let imported = ssm_core::import::parse_ssh_config(ssh_config_path);
+        if !imported.is_empty() {
+            config.hosts = imported;
+            let _ = config.save(&config_path);
+            let _ = ssm_core::ssh_config::sync_ssh_config(&config);
+        }
+    }
+
     let reg_path = registry_path();
     let mut registry = TunnelRegistry::load(&reg_path).expect("failed to load tunnel registry");
     registry.reconcile();
