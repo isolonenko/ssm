@@ -2,9 +2,15 @@
 name = "ssm"
 version = "0.1.0"
 edition = "2024"
+description = "Fast TUI for managing SSH connections, tunnels, and per-host commands"
+license = "MIT"
+repository = "https://github.com/isolonenko/ssm"
+readme = "../../README.md"
+keywords = ["ssh", "tunnel", "tui", "terminal", "manager"]
+categories = ["command-line-utilities"]
 
 [dependencies]
-ssm-core = { path = "../ssm-core" }
+ssm-core = { path = "../ssm-core", version = "0.1.0" }
 ratatui = "0.29"
 crossterm = "0.28"
 clap = { version = "4", features = ["derive"] }
