@@ -5,6 +5,7 @@ mod detail_panel;
 mod filter;
 mod help;
 mod host_list;
+mod import;
 mod output_viewer;
 mod tunnel_menu;
 mod tunnel_wizard;
@@ -56,7 +57,12 @@ pub fn run() {
     // Set up terminal
     enable_raw_mode().expect("failed to enable raw mode");
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen).expect("failed to enter alternate screen");
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        crossterm::event::EnableBracketedPaste
+    )
+    .expect("failed to enter alternate screen");
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).expect("failed to create terminal");
 
@@ -67,8 +73,16 @@ pub fn run() {
             .expect("failed to draw frame");
 
         if event::poll(std::time::Duration::from_millis(250)).expect("event poll failed") {
-            if let Event::Key(key) = event::read().expect("event read failed") {
-                handle_input(&mut app, key.code, key.modifiers);
+            match event::read().expect("event read failed") {
+                Event::Key(key) => {
+                    handle_input(&mut app, key.code, key.modifiers);
+                }
+                Event::Paste(text) => {
+                    if matches!(app.mode, Mode::ImportPaste) {
+                        app.import_buffer.push_str(&text);
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -94,8 +108,12 @@ pub fn run() {
 
     // Restore terminal
     disable_raw_mode().expect("failed to disable raw mode");
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)
-        .expect("failed to leave alternate screen");
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        crossterm::event::DisableBracketedPaste
+    )
+    .expect("failed to leave alternate screen");
     terminal.show_cursor().expect("failed to show cursor");
 }
 
@@ -220,6 +238,12 @@ fn draw(f: &mut Frame, app: &App) {
         Mode::Help => {
             help::render(f);
         }
+        Mode::ImportPaste => {
+            import::render_paste(f, &app.import_buffer);
+        }
+        Mode::ImportPreview => {
+            import::render_preview(f, &app.import_parsed, &app.config.hosts, app.import_scroll);
+        }
         _ => {}
     }
 }
@@ -227,7 +251,7 @@ fn draw(f: &mut Frame, app: &App) {
 fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let base_hints: &str = match &app.mode {
         Mode::Normal => {
-            "↑↓ navigate  / filter  Enter ssh  T tunnel  C cmd  A add  E edit  D delete  ? help"
+            "↑↓ navigate  / filter  Enter ssh  T tunnel  C cmd  A add  E edit  D delete  I import  ? help"
         }
         Mode::Filter => "Enter: apply  Esc: cancel",
         Mode::Wizard(_) | Mode::EditHost(_) => "Enter: next  Esc: cancel",
@@ -236,6 +260,8 @@ fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         Mode::OutputViewer => "↑↓: scroll  Esc: close",
         Mode::TunnelMenu => "Enter: toggle  A: add tunnel  Esc: close",
         Mode::TunnelWizard(_) => "Enter: next  Esc: cancel",
+        Mode::ImportPaste => "Enter: parse & preview  Esc: cancel",
+        Mode::ImportPreview => "Y: apply  Esc: cancel  ↑↓: scroll",
         Mode::Help => "Esc: close",
     };
 
@@ -339,6 +365,12 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                     let alias = alias.to_string();
                     app.mode = Mode::Confirm(ConfirmAction::DeleteHost(alias));
                 }
+            }
+            KeyCode::Char('i') => {
+                app.import_buffer.clear();
+                app.import_parsed.clear();
+                app.import_scroll = 0;
+                app.mode = Mode::ImportPaste;
             }
             _ => {}
         },
@@ -501,6 +533,41 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 app.output_scroll = app.output_scroll.saturating_sub(1);
+            }
+            _ => {}
+        },
+        Mode::ImportPaste => match key {
+            KeyCode::Esc => {
+                app.import_buffer.clear();
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Enter => {
+                let parsed = ssm_core::import::parse_ssh_commands(&app.import_buffer);
+                app.import_parsed = parsed;
+                app.import_scroll = 0;
+                app.mode = Mode::ImportPreview;
+            }
+            KeyCode::Backspace => {
+                app.import_buffer.pop();
+            }
+            KeyCode::Char(c) => {
+                app.import_buffer.push(c);
+            }
+            _ => {}
+        },
+        Mode::ImportPreview => match key {
+            KeyCode::Esc => {
+                app.mode = Mode::ImportPaste;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                app.import_scroll = app.import_scroll.saturating_add(1);
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.import_scroll = app.import_scroll.saturating_sub(1);
+            }
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                apply_import(app);
+                app.mode = Mode::Normal;
             }
             _ => {}
         },
@@ -701,4 +768,66 @@ fn handle_tunnel_wizard_input(app: &mut App, key: KeyCode, mut state: TunnelWiza
         }
         _ => {}
     }
+}
+
+fn apply_import(app: &mut App) {
+    use ssm_core::config::{Host, TunnelConfig};
+    use ssm_core::import::alias_from_hostname;
+
+    let parsed = std::mem::take(&mut app.import_parsed);
+    let mut count = 0;
+
+    for parsed_host in parsed {
+        let tunnels: Vec<TunnelConfig> = parsed_host
+            .tunnels
+            .iter()
+            .map(|t| TunnelConfig {
+                name: format!("port-{}", t.local_port),
+                local_port: t.local_port,
+                remote_host: t.remote_host.clone(),
+                remote_port: t.remote_port,
+            })
+            .collect();
+
+        if let Some(existing) = app
+            .config
+            .hosts
+            .iter_mut()
+            .find(|h| h.hostname == parsed_host.hostname)
+        {
+            for tunnel in &tunnels {
+                if !existing.tunnels.iter().any(|t| t.local_port == tunnel.local_port) {
+                    existing.tunnels.push(tunnel.clone());
+                    count += 1;
+                }
+            }
+        } else {
+            let alias = alias_from_hostname(&parsed_host.hostname);
+            // Ensure unique alias
+            let final_alias = if app.config.hosts.iter().any(|h| h.alias == alias) {
+                format!("{}-{}", alias, parsed_host.port)
+            } else {
+                alias
+            };
+
+            count += tunnels.len();
+            app.config.hosts.push(Host {
+                alias: final_alias,
+                hostname: parsed_host.hostname,
+                user: parsed_host.user,
+                port: parsed_host.port,
+                identity_file: None,
+                tags: vec![],
+                notes: None,
+                tunnels,
+                commands: vec![],
+            });
+        }
+    }
+
+    app.save_config();
+    let _ = ssm_core::ssh_config::sync_ssh_config(&app.config);
+    app.update_filter();
+    app.import_buffer.clear();
+    app.status_message = Some(format!("Imported {} tunnel(s)", count));
 }

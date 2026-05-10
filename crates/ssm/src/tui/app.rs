@@ -17,6 +17,8 @@ pub enum Mode {
     OutputViewer,
     TunnelMenu,
     TunnelWizard(TunnelWizardState),
+    ImportPaste,
+    ImportPreview,
     Help,
 }
 
@@ -257,6 +259,9 @@ pub struct App {
     pub should_quit: bool,
     pub pending_ssh: Option<Vec<String>>,
     pub status_message: Option<String>,
+    pub import_buffer: String,
+    pub import_parsed: Vec<ssm_core::import::ParsedHost>,
+    pub import_scroll: u16,
 }
 
 impl App {
@@ -283,6 +288,9 @@ impl App {
             should_quit: false,
             pending_ssh: None,
             status_message: None,
+            import_buffer: String::new(),
+            import_parsed: vec![],
+            import_scroll: 0,
         }
     }
 
