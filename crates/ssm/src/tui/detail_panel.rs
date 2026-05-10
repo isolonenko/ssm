@@ -94,7 +94,8 @@ pub fn render(f: &mut Frame, area: Rect, host: &Host, registry: &TunnelRegistry)
         Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(80, 200, 120))),
+            .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+            .style(Style::default().bg(Color::Rgb(15, 15, 20))),
     );
 
     f.render_widget(para, area);

@@ -35,7 +35,8 @@ pub fn render(f: &mut Frame, message: &str) {
     let block = Block::default()
         .title(" Confirm ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Red));
+        .border_style(Style::default().fg(Color::Red))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);

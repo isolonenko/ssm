@@ -17,7 +17,8 @@ pub fn render_paste(f: &mut Frame, buffer: &str) {
     let block = Block::default()
         .title(" Import Tunnels — Paste SSH Commands ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);
@@ -67,7 +68,8 @@ pub fn render_preview(f: &mut Frame, parsed: &[ParsedHost], hosts: &[ssm_core::c
     let block = Block::default()
         .title(" Import Preview ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);

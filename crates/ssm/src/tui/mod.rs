@@ -121,10 +121,15 @@ pub fn run() {
 fn draw(f: &mut Frame, app: &App) {
     let area = f.area();
 
+    // Dark background fill
+    let bg = Block::default().style(Style::default().bg(Color::Rgb(15, 15, 20)));
+    f.render_widget(bg, area);
+
     let outer_block = Block::default()
         .title(" ssm ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
     let inner_area = outer_block.inner(area);
     f.render_widget(outer_block, area);
 
@@ -196,7 +201,8 @@ fn draw(f: &mut Frame, app: &App) {
                 Block::default()
                     .title(" Detail ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Rgb(80, 200, 120))),
+                    .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+                    .style(Style::default().bg(Color::Rgb(15, 15, 20))),
             );
             f.render_widget(placeholder, h_chunks[1]);
         }

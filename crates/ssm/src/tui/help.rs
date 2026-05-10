@@ -29,6 +29,7 @@ pub fn render(f: &mut Frame) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)))
         .title_alignment(Alignment::Center);
 
     let inner = block.inner(modal_area);

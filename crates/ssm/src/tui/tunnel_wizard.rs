@@ -27,7 +27,8 @@ pub fn render(f: &mut Frame, state: &TunnelWizardState) {
     let block = Block::default()
         .title(" Add Tunnel ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);

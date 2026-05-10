@@ -72,7 +72,8 @@ pub fn render(
             Block::default()
                 .title(" Hosts ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Rgb(80, 200, 120))),
+                .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+                .style(Style::default().bg(Color::Rgb(15, 15, 20))),
         )
         .highlight_style(
             Style::default()

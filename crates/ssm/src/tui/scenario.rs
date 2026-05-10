@@ -23,7 +23,8 @@ pub fn render_menu(
     let block = Block::default()
         .title(" Scenarios ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);
@@ -121,7 +122,8 @@ pub fn render_create(
     let block = Block::default()
         .title(" Create Scenario ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)));
+        .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
+        .style(Style::default().bg(Color::Rgb(15, 15, 20)));
 
     let inner = block.inner(modal);
     f.render_widget(block, modal);
