@@ -17,27 +17,27 @@ pub fn extract_placeholders(command: &str) -> Vec<String> {
 
     let mut chars = command.chars().peekable();
     while let Some(c) = chars.next() {
-        if c == '{' {
-            if chars.peek() == Some(&'{') {
-                chars.next(); // consume second '{'
-                let mut name = String::new();
-                let mut closed = false;
-                while let Some(nc) = chars.next() {
-                    if nc == '}' {
-                        if chars.peek() == Some(&'}') {
-                            chars.next(); // consume second '}'
-                            closed = true;
-                            break;
-                        } else {
-                            name.push(nc);
-                        }
+        if c == '{'
+            && chars.peek() == Some(&'{')
+        {
+            chars.next(); // consume second '{'
+            let mut name = String::new();
+            let mut closed = false;
+            while let Some(nc) = chars.next() {
+                if nc == '}' {
+                    if chars.peek() == Some(&'}') {
+                        chars.next(); // consume second '}'
+                        closed = true;
+                        break;
                     } else {
                         name.push(nc);
                     }
+                } else {
+                    name.push(nc);
                 }
-                if closed && !name.is_empty() && seen.insert(name.clone()) {
-                    result.push(name);
-                }
+            }
+            if closed && !name.is_empty() && seen.insert(name.clone()) {
+                result.push(name);
             }
         }
     }

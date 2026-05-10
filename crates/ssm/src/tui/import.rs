@@ -94,7 +94,7 @@ pub fn render_preview(f: &mut Frame, parsed: &[ParsedHost], hosts: &[ssm_core::c
                 Line::from(vec![
                     Span::styled("→ ", Style::default().fg(Color::Rgb(80, 200, 120))),
                     Span::styled(
-                        format!("{}", parsed_host.hostname),
+                        parsed_host.hostname.to_string(),
                         Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
@@ -107,7 +107,7 @@ pub fn render_preview(f: &mut Frame, parsed: &[ParsedHost], hosts: &[ssm_core::c
                 Line::from(vec![
                     Span::styled("+ ", Style::default().fg(Color::Yellow)),
                     Span::styled(
-                        format!("{}", parsed_host.hostname),
+                        parsed_host.hostname.to_string(),
                         Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(

@@ -387,11 +387,11 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 }
             }
             KeyCode::Char('c') => {
-                if let Some(host) = app.selected_host() {
-                    if !host.commands.is_empty() {
-                        app.command_selected = 0;
-                        app.mode = Mode::CommandPicker;
-                    }
+                if let Some(host) = app.selected_host()
+                    && !host.commands.is_empty()
+                {
+                    app.command_selected = 0;
+                    app.mode = Mode::CommandPicker;
                 }
             }
             KeyCode::Char('a') => {
@@ -464,10 +464,10 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                         app.tunnel_selected += 1;
                     }
                 }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    if app.tunnel_selected > 0 {
-                        app.tunnel_selected -= 1;
-                    }
+                KeyCode::Char('k') | KeyCode::Up
+                    if app.tunnel_selected > 0 =>
+                {
+                    app.tunnel_selected -= 1;
                 }
                 KeyCode::Enter => {
                     if let Some(tunnel) = host.tunnels.get(app.tunnel_selected) {
@@ -509,10 +509,10 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                             app.command_selected += 1;
                         }
                     }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        if app.command_selected > 0 {
-                            app.command_selected -= 1;
-                        }
+                    KeyCode::Char('k') | KeyCode::Up
+                        if app.command_selected > 0 =>
+                    {
+                        app.command_selected -= 1;
                     }
                     KeyCode::Enter => {
                         // Run & show: capture output, switch to OutputViewer
@@ -561,7 +561,7 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                         // Copy command to clipboard
                         if let Some(cmd) = host.commands.get(app.command_selected) {
                             let command_str = cmd.command.clone();
-                            let _ = try_copy_to_clipboard(&command_str);
+                            try_copy_to_clipboard(&command_str);
                         }
                         app.mode = Mode::Normal;
                     }
@@ -632,10 +632,10 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                     app.scenario_selected += 1;
                 }
             }
-            KeyCode::Char('k') | KeyCode::Up => {
-                if app.scenario_selected > 0 {
-                    app.scenario_selected -= 1;
-                }
+            KeyCode::Char('k') | KeyCode::Up
+                if app.scenario_selected > 0 =>
+            {
+                app.scenario_selected -= 1;
             }
             KeyCode::Enter => {
                 if let Some(scenario) = app.config.scenarios.get(app.scenario_selected).cloned() {
@@ -649,15 +649,15 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 app.scenario_selected = 0;
                 app.mode = Mode::ScenarioCreate;
             }
-            KeyCode::Char('d') => {
-                if !app.config.scenarios.is_empty() {
-                    app.config.scenarios.remove(app.scenario_selected);
-                    app.save_config();
-                    if app.scenario_selected > 0
-                        && app.scenario_selected >= app.config.scenarios.len()
-                    {
-                        app.scenario_selected = app.config.scenarios.len().saturating_sub(1);
-                    }
+            KeyCode::Char('d')
+                if !app.config.scenarios.is_empty() =>
+            {
+                app.config.scenarios.remove(app.scenario_selected);
+                app.save_config();
+                if app.scenario_selected > 0
+                    && app.scenario_selected >= app.config.scenarios.len()
+                {
+                    app.scenario_selected = app.config.scenarios.len().saturating_sub(1);
                 }
             }
             _ => {}
@@ -673,10 +673,10 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                     app.scenario_selected += 1;
                 }
             }
-            KeyCode::Char('k') | KeyCode::Up => {
-                if app.scenario_selected > 0 {
-                    app.scenario_selected -= 1;
-                }
+            KeyCode::Char('k') | KeyCode::Up
+                if app.scenario_selected > 0 =>
+            {
+                app.scenario_selected -= 1;
             }
             KeyCode::Char(' ') => {
                 if let Some(val) = app.scenario_toggle.get_mut(app.scenario_selected) {
@@ -868,10 +868,10 @@ fn handle_tunnel_wizard_input(app: &mut App, key: KeyCode, mut state: TunnelWiza
                     remote_port,
                 };
 
-                if let Some(idx) = app.filtered_indices.get(app.selected_index).copied() {
-                    if let Some(host) = app.config.hosts.get_mut(idx) {
-                        host.tunnels.push(tunnel);
-                    }
+                if let Some(idx) = app.filtered_indices.get(app.selected_index).copied()
+                    && let Some(host) = app.config.hosts.get_mut(idx)
+                {
+                    host.tunnels.push(tunnel);
                 }
 
                 app.save_config();
@@ -977,12 +977,11 @@ fn toggle_scenario(app: &mut App, scenario: &ssm_core::config::Scenario) {
                 errors.push(format!("{}:{}: {}", st.host, st.tunnel, e));
             }
         } else {
-            if let Some(host) = app.config.hosts.iter().find(|h| h.alias == st.host) {
-                if let Some(tc) = host.tunnels.iter().find(|t| t.name == st.tunnel) {
-                    if let Err(e) = start_tunnel(&st.host, tc, &mut app.registry) {
-                        errors.push(format!("{}:{}: {}", st.host, st.tunnel, e));
-                    }
-                }
+            if let Some(host) = app.config.hosts.iter().find(|h| h.alias == st.host)
+                && let Some(tc) = host.tunnels.iter().find(|t| t.name == st.tunnel)
+                && let Err(e) = start_tunnel(&st.host, tc, &mut app.registry)
+            {
+                errors.push(format!("{}:{}: {}", st.host, st.tunnel, e));
             }
         }
     }

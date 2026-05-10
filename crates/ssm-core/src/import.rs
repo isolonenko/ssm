@@ -24,20 +24,21 @@ pub fn parse_ssh_config(path: &Path) -> Vec<Host> {
 
         if let Some(rest) = trimmed.strip_prefix("Host ").or_else(|| trimmed.strip_prefix("Host\t"))
         {
-            if let Some(alias) = current_alias.take() {
-                if !hostname.is_empty() && alias != "*" {
-                    hosts.push(Host {
-                        alias,
-                        hostname: hostname.clone(),
-                        user: user.take(),
-                        port,
-                        identity_file: identity_file.take(),
-                        tags: vec![],
-                        notes: None,
-                        tunnels: vec![],
-                        commands: vec![],
-                    });
-                }
+            if let Some(alias) = current_alias.take()
+                && !hostname.is_empty()
+                && alias != "*"
+            {
+                hosts.push(Host {
+                    alias,
+                    hostname: hostname.clone(),
+                    user: user.take(),
+                    port,
+                    identity_file: identity_file.take(),
+                    tags: vec![],
+                    notes: None,
+                    tunnels: vec![],
+                    commands: vec![],
+                });
             }
 
             let alias = rest.trim().to_string();
@@ -62,20 +63,21 @@ pub fn parse_ssh_config(path: &Path) -> Vec<Host> {
         }
     }
 
-    if let Some(alias) = current_alias {
-        if !hostname.is_empty() && alias != "*" {
-            hosts.push(Host {
-                alias,
-                hostname,
-                user,
-                port,
-                identity_file,
-                tags: vec![],
-                notes: None,
-                tunnels: vec![],
-                commands: vec![],
-            });
-        }
+    if let Some(alias) = current_alias
+        && !hostname.is_empty()
+        && alias != "*"
+    {
+        hosts.push(Host {
+            alias,
+            hostname,
+            user,
+            port,
+            identity_file,
+            tags: vec![],
+            notes: None,
+            tunnels: vec![],
+            commands: vec![],
+        });
     }
 
     hosts
@@ -172,10 +174,10 @@ fn parse_single_ssh_command(cmd: &str) -> Option<ParsedCommand> {
             }
         } else if tok == "-L" {
             i += 1;
-            if i < tokens.len() {
-                if let Some(t) = parse_tunnel_spec(tokens[i]) {
-                    tunnels.push(t);
-                }
+            if i < tokens.len()
+                && let Some(t) = parse_tunnel_spec(tokens[i])
+            {
+                tunnels.push(t);
             }
         } else if tok.starts_with('-') {
             // Combined flags like -nNTL — check if L is in there
@@ -195,10 +197,10 @@ fn parse_single_ssh_command(cmd: &str) -> Option<ParsedCommand> {
             }) {
                 let _ = after_l;
                 i += 1;
-                if i < tokens.len() {
-                    if let Some(t) = parse_tunnel_spec(tokens[i]) {
-                        tunnels.push(t);
-                    }
+                if i < tokens.len()
+                    && let Some(t) = parse_tunnel_spec(tokens[i])
+                {
+                    tunnels.push(t);
                 }
             }
             // Other flags we don't care about (-n, -N, -T, -f, etc.)

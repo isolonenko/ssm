@@ -86,8 +86,8 @@ pub fn handle(action: TunnelAction) {
                 return;
             }
             println!(
-                "{:<15} {:<15} {:<25} {:<8} {}",
-                "HOST", "TUNNEL", "FORWARDING", "PID", "STATUS"
+                "{:<15} {:<15} {:<25} {:<8} STATUS",
+                "HOST", "TUNNEL", "FORWARDING", "PID"
             );
             for entry in &registry.entries {
                 let status = if is_pid_alive(entry.pid) {

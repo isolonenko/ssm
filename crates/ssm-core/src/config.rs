@@ -77,7 +77,7 @@ pub struct Scenario {
     pub tunnels: Vec<ScenarioTunnel>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     #[serde(default)]
     pub settings: Settings,
@@ -85,16 +85,6 @@ pub struct Config {
     pub hosts: Vec<Host>,
     #[serde(default)]
     pub scenarios: Vec<Scenario>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            settings: Settings::default(),
-            hosts: Vec::new(),
-            scenarios: Vec::new(),
-        }
-    }
 }
 
 impl Config {
