@@ -16,6 +16,7 @@ fn test_full_workflow_add_hosts_and_sync() {
             generated_config_path: generated_path.clone(),
         },
         hosts: vec![],
+        scenarios: vec![],
     };
 
     config

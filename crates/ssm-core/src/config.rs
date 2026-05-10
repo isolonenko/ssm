@@ -66,11 +66,25 @@ fn default_port() -> u16 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScenarioTunnel {
+    pub host: String,
+    pub tunnel: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Scenario {
+    pub name: String,
+    pub tunnels: Vec<ScenarioTunnel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     #[serde(default)]
     pub settings: Settings,
     #[serde(default)]
     pub hosts: Vec<Host>,
+    #[serde(default)]
+    pub scenarios: Vec<Scenario>,
 }
 
 impl Default for Config {
@@ -78,6 +92,7 @@ impl Default for Config {
         Self {
             settings: Settings::default(),
             hosts: Vec::new(),
+            scenarios: Vec::new(),
         }
     }
 }
@@ -159,6 +174,7 @@ mod tests {
                     command: "tail -f /var/log/app/api.log".into(),
                 }],
             }],
+            scenarios: vec![],
         };
         config.save(&path).unwrap();
         let loaded = Config::load(&path).unwrap();

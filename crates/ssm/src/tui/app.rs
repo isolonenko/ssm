@@ -19,6 +19,8 @@ pub enum Mode {
     TunnelWizard(TunnelWizardState),
     ImportPaste,
     ImportPreview,
+    ScenarioMenu,
+    ScenarioCreate,
     Help,
 }
 
@@ -262,6 +264,9 @@ pub struct App {
     pub import_buffer: String,
     pub import_parsed: Vec<ssm_core::import::ParsedHost>,
     pub import_scroll: u16,
+    pub scenario_selected: usize,
+    pub scenario_name_buf: String,
+    pub scenario_toggle: Vec<bool>,
 }
 
 impl App {
@@ -291,6 +296,9 @@ impl App {
             import_buffer: String::new(),
             import_parsed: vec![],
             import_scroll: 0,
+            scenario_selected: 0,
+            scenario_name_buf: String::new(),
+            scenario_toggle: vec![],
         }
     }
 

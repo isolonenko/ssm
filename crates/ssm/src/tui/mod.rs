@@ -7,6 +7,7 @@ mod help;
 mod host_list;
 mod import;
 mod output_viewer;
+mod scenario;
 mod tunnel_menu;
 mod tunnel_wizard;
 mod wizard;
@@ -244,6 +245,18 @@ fn draw(f: &mut Frame, app: &App) {
         Mode::ImportPreview => {
             import::render_preview(f, &app.import_parsed, &app.config.hosts, app.import_scroll);
         }
+        Mode::ScenarioMenu => {
+            scenario::render_menu(f, &app.config, &app.registry, app.scenario_selected);
+        }
+        Mode::ScenarioCreate => {
+            scenario::render_create(
+                f,
+                &app.scenario_name_buf,
+                &app.config,
+                &app.scenario_toggle,
+                app.scenario_selected,
+            );
+        }
         _ => {}
     }
 }
@@ -251,7 +264,7 @@ fn draw(f: &mut Frame, app: &App) {
 fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let base_hints: &str = match &app.mode {
         Mode::Normal => {
-            "↑↓ navigate  / filter  Enter ssh  T tunnel  C cmd  A add  E edit  D delete  I import  ? help"
+            "↑↓ navigate  / filter  Enter ssh  T tunnel  S scenario  C cmd  A add  E edit  D del  I import  ? help"
         }
         Mode::Filter => "Enter: apply  Esc: cancel",
         Mode::Wizard(_) | Mode::EditHost(_) => "Enter: next  Esc: cancel",
@@ -262,6 +275,8 @@ fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         Mode::TunnelWizard(_) => "Enter: next  Esc: cancel",
         Mode::ImportPaste => "Enter: parse & preview  Esc: cancel",
         Mode::ImportPreview => "Y: apply  Esc: cancel  ↑↓: scroll",
+        Mode::ScenarioMenu => "Enter: toggle all  A: create  D: delete  Esc: close",
+        Mode::ScenarioCreate => "Space: toggle  Enter: save  Esc: cancel",
         Mode::Help => "Esc: close",
     };
 
@@ -371,6 +386,10 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 app.import_parsed.clear();
                 app.import_scroll = 0;
                 app.mode = Mode::ImportPaste;
+            }
+            KeyCode::Char('s') => {
+                app.scenario_selected = 0;
+                app.mode = Mode::ScenarioMenu;
             }
             _ => {}
         },
@@ -568,6 +587,84 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
             KeyCode::Char('y') | KeyCode::Char('Y') => {
                 apply_import(app);
                 app.mode = Mode::Normal;
+            }
+            _ => {}
+        },
+        Mode::ScenarioMenu => match key {
+            KeyCode::Esc => {
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                let max = app.config.scenarios.len().saturating_sub(1);
+                if app.scenario_selected < max {
+                    app.scenario_selected += 1;
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                if app.scenario_selected > 0 {
+                    app.scenario_selected -= 1;
+                }
+            }
+            KeyCode::Enter => {
+                if let Some(scenario) = app.config.scenarios.get(app.scenario_selected).cloned() {
+                    toggle_scenario(app, &scenario);
+                }
+            }
+            KeyCode::Char('a') => {
+                let all_tunnels = scenario::collect_all_tunnels(&app.config);
+                app.scenario_name_buf.clear();
+                app.scenario_toggle = vec![false; all_tunnels.len()];
+                app.scenario_selected = 0;
+                app.mode = Mode::ScenarioCreate;
+            }
+            KeyCode::Char('d') => {
+                if !app.config.scenarios.is_empty() {
+                    app.config.scenarios.remove(app.scenario_selected);
+                    app.save_config();
+                    if app.scenario_selected > 0
+                        && app.scenario_selected >= app.config.scenarios.len()
+                    {
+                        app.scenario_selected = app.config.scenarios.len().saturating_sub(1);
+                    }
+                }
+            }
+            _ => {}
+        },
+        Mode::ScenarioCreate => match key {
+            KeyCode::Esc => {
+                app.mode = Mode::ScenarioMenu;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                let all_tunnels = scenario::collect_all_tunnels(&app.config);
+                let max = all_tunnels.len().saturating_sub(1);
+                if app.scenario_selected < max {
+                    app.scenario_selected += 1;
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                if app.scenario_selected > 0 {
+                    app.scenario_selected -= 1;
+                }
+            }
+            KeyCode::Char(' ') => {
+                if let Some(val) = app.scenario_toggle.get_mut(app.scenario_selected) {
+                    *val = !*val;
+                }
+            }
+            KeyCode::Enter => {
+                save_scenario(app);
+                app.mode = Mode::ScenarioMenu;
+            }
+            KeyCode::Backspace => {
+                app.scenario_name_buf.pop();
+            }
+            KeyCode::Char(c) => {
+                // If cursor is still on name (selected == 0 and name is being typed)
+                // We'll use a simple heuristic: if no toggles are set and we're at position 0,
+                // typing goes to name. Once you press down, navigation takes over.
+                // Actually, let's just always allow typing into name while in this mode.
+                // Characters that aren't j/k/space go to name buffer.
+                app.scenario_name_buf.push(c);
             }
             _ => {}
         },
@@ -830,4 +927,61 @@ fn apply_import(app: &mut App) {
     app.update_filter();
     app.import_buffer.clear();
     app.status_message = Some(format!("Imported {} tunnel(s)", count));
+}
+
+fn toggle_scenario(app: &mut App, scenario: &ssm_core::config::Scenario) {
+    // If any tunnel in the scenario is running, stop all. Otherwise start all.
+    let any_running = scenario.tunnels.iter().any(|st| {
+        app.registry
+            .find(&st.host, &st.tunnel)
+            .map(|e| is_pid_alive(e.pid))
+            .unwrap_or(false)
+    });
+
+    for st in &scenario.tunnels {
+        if any_running {
+            let _ = stop_tunnel(&st.host, &st.tunnel, &mut app.registry);
+        } else {
+            // Find the tunnel config from the host
+            if let Some(host) = app.config.hosts.iter().find(|h| h.alias == st.host) {
+                if let Some(tc) = host.tunnels.iter().find(|t| t.name == st.tunnel) {
+                    let _ = start_tunnel(&st.host, tc, &mut app.registry);
+                }
+            }
+        }
+    }
+    app.save_registry();
+}
+
+fn save_scenario(app: &mut App) {
+    use ssm_core::config::{Scenario, ScenarioTunnel};
+
+    let name = app.scenario_name_buf.trim().to_string();
+    if name.is_empty() {
+        app.status_message = Some("Scenario name is required".to_string());
+        return;
+    }
+
+    let all_tunnels = scenario::collect_all_tunnels(&app.config);
+    let selected_tunnels: Vec<ScenarioTunnel> = all_tunnels
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| app.scenario_toggle.get(*i).copied().unwrap_or(false))
+        .map(|(_, (host, tunnel, _))| ScenarioTunnel {
+            host: host.clone(),
+            tunnel: tunnel.clone(),
+        })
+        .collect();
+
+    if selected_tunnels.is_empty() {
+        app.status_message = Some("Select at least one tunnel".to_string());
+        return;
+    }
+
+    app.config.scenarios.push(Scenario {
+        name,
+        tunnels: selected_tunnels,
+    });
+    app.save_config();
+    app.status_message = Some("Scenario created".to_string());
 }
