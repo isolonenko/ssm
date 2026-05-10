@@ -1,29 +1,18 @@
+<div align="center">
+
 # ssm
 
-Fast TUI for managing SSH connections, tunnels, and per-host commands.
+**Fast TUI for managing SSH connections, tunnels, and per-host commands.**
+
+[![Crates.io](https://img.shields.io/crates/v/ssm.svg)](https://crates.io/crates/ssm)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/isolonenko/ssm/ci.yml?branch=master)](https://github.com/isolonenko/ssm/actions)
+
+<img src="assets/screenshot.png" alt="ssm screenshot" width="700">
+
+</div>
 
 No more scattered shell aliases, forgotten port numbers, or grepping `ps aux` for tunnel PIDs. `ssm` gives you a single place to store hosts, spin up tunnels, and run commands — with aliases that work system-wide.
-
-```
-┌─ ssm ──────────────────────────────────────────────────────┐
-│  Hosts               │  prod-api                           │
-│                      │                                     │
-│  ● prod-api     prod │  Host: 10.0.1.50                    │
-│    staging      dev  │  User: deploy                       │
-│    dev-local    dev  │  Port: 22                           │
-│                      │  Key:  ~/.ssh/id_ed25519            │
-│                      │                                     │
-│                      │  Tunnels:                           │
-│                      │  ● postgres  localhost:5432         │
-│                      │  ○ redis     localhost:6379         │
-│                      │                                     │
-│                      │  Commands:                          │
-│                      │    logs                             │
-│                      │    deploy-status                    │
-├──────────────────────┴─────────────────────────────────────┤
-│ ↑↓ navigate  / filter  Enter ssh  T tunnel  S scenario    │
-└────────────────────────────────────────────────────────────┘
-```
 
 ## Install
 
