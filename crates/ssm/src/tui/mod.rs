@@ -1,5 +1,6 @@
 pub mod app;
 mod command_picker;
+mod command_wizard;
 mod confirm;
 mod detail_panel;
 mod filter;
@@ -12,7 +13,7 @@ mod tunnel_menu;
 mod tunnel_wizard;
 mod wizard;
 
-use app::{App, ConfirmAction, Mode, TunnelWizardState, TunnelWizardStep, WizardState, WizardStep};
+use app::{App, CommandWizardState, CommandWizardStep, ConfirmAction, Mode, TunnelWizardState, TunnelWizardStep, WizardState, WizardStep};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -234,6 +235,9 @@ fn draw(f: &mut Frame, app: &App) {
         Mode::TunnelWizard(state) => {
             tunnel_wizard::render(f, state);
         }
+        Mode::CommandWizard(state) => {
+            command_wizard::render(f, state);
+        }
         Mode::CommandPicker => {
             if let Some(host) = app.selected_host() {
                 command_picker::render(f, &host.alias, &host.commands, app.command_selected);
@@ -275,10 +279,10 @@ fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         Mode::Filter => "Enter: apply  Esc: cancel",
         Mode::Wizard(_) | Mode::EditHost(_) => "Enter: next  Esc: cancel",
         Mode::Confirm(_) => "y: confirm  n/Esc: cancel",
-        Mode::CommandPicker => "Enter: run & show  S: session  Y: copy  Esc: close",
+        Mode::CommandPicker => "Enter: run & show  S: session  Y: copy  A: add  Esc: close",
         Mode::OutputViewer => "↑↓: scroll  Esc: close",
         Mode::TunnelMenu => "Enter: toggle  A: add tunnel  Esc: close",
-        Mode::TunnelWizard(_) => "Enter: next  Esc: cancel",
+        Mode::TunnelWizard(_) | Mode::CommandWizard(_) => "Enter: next  Esc: cancel",
         Mode::ImportPaste => "Enter: parse & preview  Esc: cancel",
         Mode::ImportPreview => "Y: apply  Esc: cancel  ↑↓: scroll",
         Mode::ScenarioMenu => "Enter: toggle all  A: create  D: delete  Esc: close",
@@ -387,11 +391,13 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 }
             }
             KeyCode::Char('c') => {
-                if let Some(host) = app.selected_host()
-                    && !host.commands.is_empty()
-                {
-                    app.command_selected = 0;
-                    app.mode = Mode::CommandPicker;
+                if let Some(host) = app.selected_host() {
+                    if host.commands.is_empty() {
+                        app.mode = Mode::CommandWizard(CommandWizardState::new());
+                    } else {
+                        app.command_selected = 0;
+                        app.mode = Mode::CommandPicker;
+                    }
                 }
             }
             KeyCode::Char('a') => {
@@ -565,12 +571,13 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                         }
                         app.mode = Mode::Normal;
                     }
+                    KeyCode::Char('a') => {
+                        app.mode = Mode::CommandWizard(CommandWizardState::new());
+                    }
                     _ => {}
                 }
-            } else {
-                if key == KeyCode::Esc {
-                    app.mode = Mode::Normal;
-                }
+            } else if key == KeyCode::Esc {
+                app.mode = Mode::Normal;
             }
         }
         // Task 17: Output viewer
@@ -702,6 +709,9 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
         },
         Mode::TunnelWizard(state) => {
             handle_tunnel_wizard_input(app, key, state.clone());
+        }
+        Mode::CommandWizard(state) => {
+            handle_command_wizard_input(app, key, state.clone());
         }
         Mode::Wizard(state) => {
             handle_wizard_input(app, key, state.clone(), false);
@@ -894,6 +904,64 @@ fn handle_tunnel_wizard_input(app: &mut App, key: KeyCode, mut state: TunnelWiza
         KeyCode::Char(c) => {
             state.current_value_mut().push(c);
             app.mode = Mode::TunnelWizard(state);
+        }
+        _ => {}
+    }
+}
+
+fn handle_command_wizard_input(app: &mut App, key: KeyCode, mut state: CommandWizardState) {
+    use ssm_core::config::CommandConfig;
+
+    match key {
+        KeyCode::Esc => {
+            app.mode = Mode::Normal;
+        }
+        KeyCode::Enter => {
+            if state.step == CommandWizardStep::Command {
+                if state.name.trim().is_empty() {
+                    app.status_message = Some("Command name is required".to_string());
+                    app.mode = Mode::Normal;
+                    return;
+                }
+                if state.command.trim().is_empty() {
+                    app.status_message = Some("Command string is required".to_string());
+                    app.mode = Mode::Normal;
+                    return;
+                }
+
+                let cmd = CommandConfig {
+                    name: state.name.trim().to_string(),
+                    command: state.command.trim().to_string(),
+                };
+
+                if let Some(idx) = app.filtered_indices.get(app.selected_index).copied()
+                    && let Some(host) = app.config.hosts.get_mut(idx)
+                {
+                    host.commands.push(cmd);
+                }
+
+                app.save_config();
+                app.status_message = Some(format!("Command '{}' added", state.name.trim()));
+                app.mode = Mode::Normal;
+            } else {
+                state.step = CommandWizardStep::Command;
+                app.mode = Mode::CommandWizard(state);
+            }
+        }
+        KeyCode::Backspace => {
+            let val = state.current_value_mut();
+            if val.is_empty() {
+                if state.step == CommandWizardStep::Command {
+                    state.step = CommandWizardStep::Name;
+                }
+            } else {
+                val.pop();
+            }
+            app.mode = Mode::CommandWizard(state);
+        }
+        KeyCode::Char(c) => {
+            state.current_value_mut().push(c);
+            app.mode = Mode::CommandWizard(state);
         }
         _ => {}
     }

@@ -17,6 +17,7 @@ pub enum Mode {
     OutputViewer,
     TunnelMenu,
     TunnelWizard(TunnelWizardState),
+    CommandWizard(CommandWizardState),
     ImportPaste,
     ImportPreview,
     ScenarioMenu,
@@ -228,6 +229,61 @@ impl TunnelWizardState {
             TunnelWizardStep::LocalPort => 1,
             TunnelWizardStep::RemoteHost => 2,
             TunnelWizardStep::RemotePort => 3,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CommandWizardState
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CommandWizardStep {
+    Name,
+    Command,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommandWizardState {
+    pub step: CommandWizardStep,
+    pub name: String,
+    pub command: String,
+}
+
+impl CommandWizardState {
+    pub fn new() -> Self {
+        Self {
+            step: CommandWizardStep::Name,
+            name: String::new(),
+            command: String::new(),
+        }
+    }
+
+    pub fn current_value(&self) -> &str {
+        match self.step {
+            CommandWizardStep::Name => &self.name,
+            CommandWizardStep::Command => &self.command,
+        }
+    }
+
+    pub fn current_value_mut(&mut self) -> &mut String {
+        match self.step {
+            CommandWizardStep::Name => &mut self.name,
+            CommandWizardStep::Command => &mut self.command,
+        }
+    }
+
+    pub fn step_label(&self) -> &'static str {
+        match self.step {
+            CommandWizardStep::Name => "Name",
+            CommandWizardStep::Command => "Command",
+        }
+    }
+
+    pub fn step_index(&self) -> usize {
+        match self.step {
+            CommandWizardStep::Name => 0,
+            CommandWizardStep::Command => 1,
         }
     }
 }
