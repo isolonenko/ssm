@@ -126,13 +126,22 @@ pub fn render_preview(f: &mut Frame, parsed: &[ParsedHost], hosts: &[ssm_core::c
             }
 
             for tunnel in &parsed_host.tunnels {
+                let already_exists = existing
+                    .map(|h| h.tunnels.iter().any(|t| t.local_port == tunnel.local_port))
+                    .unwrap_or(false);
+                let (icon, icon_style, suffix) = if already_exists {
+                    ("⊘ ", Style::default().fg(Color::Gray), " (exists, skip)")
+                } else {
+                    ("⊙ ", Style::default().fg(Color::Rgb(80, 200, 120)), "")
+                };
                 lines.push(Line::from(vec![
                     Span::raw("    "),
-                    Span::styled("⊙ ", Style::default().fg(Color::Rgb(80, 200, 120))),
+                    Span::styled(icon, icon_style),
                     Span::raw(format!(
                         "{}:{} → {}:{}",
                         "localhost", tunnel.local_port, tunnel.remote_host, tunnel.remote_port
                     )),
+                    Span::styled(suffix, Style::default().fg(Color::Gray)),
                 ]));
             }
 
