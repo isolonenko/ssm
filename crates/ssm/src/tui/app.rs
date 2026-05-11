@@ -165,6 +165,7 @@ pub struct TunnelWizardState {
     pub local_port: String,
     pub remote_host: String,
     pub remote_port: String,
+    pub editing_index: Option<usize>,
 }
 
 impl TunnelWizardState {
@@ -175,6 +176,18 @@ impl TunnelWizardState {
             local_port: String::new(),
             remote_host: "localhost".to_string(),
             remote_port: String::new(),
+            editing_index: None,
+        }
+    }
+
+    pub fn from_tunnel(tunnel: &ssm_core::config::TunnelConfig, index: usize) -> Self {
+        Self {
+            step: TunnelWizardStep::Name,
+            name: tunnel.name.clone(),
+            local_port: tunnel.local_port.to_string(),
+            remote_host: tunnel.remote_host.clone(),
+            remote_port: tunnel.remote_port.to_string(),
+            editing_index: Some(index),
         }
     }
 

@@ -24,8 +24,9 @@ pub fn render(f: &mut Frame, state: &TunnelWizardState) {
 
     f.render_widget(Clear, modal);
 
+    let title = if state.editing_index.is_some() { " Edit Tunnel " } else { " Add Tunnel " };
     let block = Block::default()
-        .title(" Add Tunnel ")
+        .title(title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Rgb(80, 200, 120)))
         .style(Style::default().bg(Color::Rgb(15, 15, 20)));

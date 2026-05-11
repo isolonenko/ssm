@@ -98,7 +98,7 @@ pub fn render(f: &mut Frame, host: &Host, registry: &TunnelRegistry, selected: u
 
     // Hint line
     let hint = Span::styled(
-        "Enter: toggle  A: add  Esc: close",
+        "Enter: toggle  A: add  E: edit  D: del  Esc: close",
         Style::default().fg(Color::Gray),
     );
     f.render_widget(

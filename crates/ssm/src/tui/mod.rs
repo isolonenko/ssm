@@ -281,7 +281,7 @@ fn render_status_bar(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         Mode::Confirm(_) => "y: confirm  n/Esc: cancel",
         Mode::CommandPicker => "Enter: run & show  S: session  Y: copy  A: add  Esc: close",
         Mode::OutputViewer => "↑↓: scroll  Esc: close",
-        Mode::TunnelMenu => "Enter: toggle  A: add tunnel  Esc: close",
+        Mode::TunnelMenu => "Enter: toggle  A: add  E: edit  D: delete  Esc: close",
         Mode::TunnelWizard(_) | Mode::CommandWizard(_) => "Enter: next  Esc: cancel",
         Mode::ImportPaste => "Enter: parse & preview  Esc: cancel",
         Mode::ImportPreview => "Y: apply  Esc: cancel  ↑↓: scroll",
@@ -498,6 +498,32 @@ fn handle_input(app: &mut App, key: KeyCode, modifiers: KeyModifiers) {
                 }
                 KeyCode::Char('a') => {
                     app.mode = Mode::TunnelWizard(TunnelWizardState::new());
+                }
+                KeyCode::Char('e') => {
+                    if let Some(tunnel) = host.tunnels.get(app.tunnel_selected) {
+                        let state = TunnelWizardState::from_tunnel(tunnel, app.tunnel_selected);
+                        app.mode = Mode::TunnelWizard(state);
+                    }
+                }
+                KeyCode::Char('d') => {
+                    if let Some(tunnel) = host.tunnels.get(app.tunnel_selected) {
+                        let alias = host.alias.clone();
+                        let tunnel_name = tunnel.name.clone();
+                        let _ = stop_tunnel(&alias, &tunnel_name, &mut app.registry);
+                        if let Some(idx) = app.filtered_indices.get(app.selected_index).copied() {
+                            app.config.hosts[idx].tunnels.remove(app.tunnel_selected);
+                            let remaining = app.config.hosts[idx].tunnels.len();
+                            if app.tunnel_selected > 0 && app.tunnel_selected >= remaining {
+                                app.tunnel_selected = remaining.saturating_sub(1);
+                            }
+                            if remaining == 0 {
+                                app.mode = Mode::Normal;
+                            }
+                        }
+                        app.save_config();
+                        app.save_registry();
+                        app.status_message = Some(format!("Tunnel '{}' deleted", tunnel_name));
+                    }
                 }
                 _ => {}
             }
@@ -881,7 +907,13 @@ fn handle_tunnel_wizard_input(app: &mut App, key: KeyCode, mut state: TunnelWiza
                 if let Some(idx) = app.filtered_indices.get(app.selected_index).copied()
                     && let Some(host) = app.config.hosts.get_mut(idx)
                 {
-                    host.tunnels.push(tunnel);
+                    if let Some(edit_idx) = state.editing_index {
+                        if edit_idx < host.tunnels.len() {
+                            host.tunnels[edit_idx] = tunnel;
+                        }
+                    } else {
+                        host.tunnels.push(tunnel);
+                    }
                 }
 
                 app.save_config();
